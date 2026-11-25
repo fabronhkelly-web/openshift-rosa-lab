@@ -1,0 +1,493 @@
+**********************
+Windows PowerShell transcript start
+**********************
+
+===================== 0. Cluster facts (rosa) =====================
+PS> rosa describe cluster -c rosa-lab
+
+Name:                       rosa-lab
+Domain Prefix:              rosa-lab
+Display Name:               rosa-lab
+ID:                         <redacted>
+External ID:                <redacted>
+Control Plane:              ROSA Service Hosted
+OpenShift Version:          4.22.22
+Channel Group:              stable
+DNS:                        rosa-lab.i4e5.p3.openshiftapps.com
+AWS Account:                <ACCOUNT_ID>
+AWS Billing Account:        <ACCOUNT_ID>
+API URL:                    https://api.rosa-lab.i4e5.p3.openshiftapps.com:443
+Console URL:                https://console-openshift-console.apps.rosa.rosa-lab.i4e5.p3.openshiftapps.com
+Region:                     us-east-1
+Availability:
+ - Control Plane:           MultiAZ
+ - Data Plane:              SingleAZ
+
+Nodes:
+ - Compute (desired):       2
+ - Compute (current):       2
+Network:
+ - Type:                    OVNKubernetes
+ - Service CIDR:            172.30.0.0/16
+ - Machine CIDR:            10.0.0.0/16
+ - Pod CIDR:                10.128.0.0/14
+ - Host Prefix:             /23
+ - Subnets:                 subnet-0bf0433761475e3fe, subnet-08bf9c7f4dd735e32
+EC2 Metadata Http Tokens:   optional
+Role (STS) ARN:             arn:aws:iam::<ACCOUNT_ID>:role/ManagedOpenShift-HCP-ROSA-Installer-Role
+Support Role ARN:           arn:aws:iam::<ACCOUNT_ID>:role/ManagedOpenShift-HCP-ROSA-Support-Role
+Instance IAM Roles:
+ - Worker:                  arn:aws:iam::<ACCOUNT_ID>:role/ManagedOpenShift-HCP-ROSA-Worker-Role
+Operator IAM Roles:
+ - arn:aws:iam::<ACCOUNT_ID>:role/rosa-lab-kube-system-capa-controller-manager
+ - arn:aws:iam::<ACCOUNT_ID>:role/rosa-lab-kube-system-control-plane-operator
+ - arn:aws:iam::<ACCOUNT_ID>:role/rosa-lab-kube-system-kms-provider
+ - arn:aws:iam::<ACCOUNT_ID>:role/rosa-lab-openshift-image-registry-installer-cloud-credentials
+ - arn:aws:iam::<ACCOUNT_ID>:role/rosa-lab-openshift-ingress-operator-cloud-credentials
+ - arn:aws:iam::<ACCOUNT_ID>:role/rosa-lab-openshift-cluster-csi-drivers-ebs-cloud-credentials
+ - arn:aws:iam::<ACCOUNT_ID>:role/rosa-lab-openshift-cloud-network-config-controller-cloud-credent
+ - arn:aws:iam::<ACCOUNT_ID>:role/rosa-lab-kube-system-kube-controller-manager
+Managed Policies:           Yes
+State:                      ready
+Private:                    No
+Delete Protection:          Disabled
+Created:                    Nov 25 2026 18:04:26 UTC
+User Workload Monitoring:   Enabled
+Details Page:               https://console.redhat.com/openshift/details/s/<redacted>
+OIDC Endpoint URL:          https://oidc.op1.openshiftapps.com/<OIDC_CONFIG_ID> (Managed)
+Etcd Encryption:            Disabled
+Audit Log Forwarding:       Disabled
+External Authentication:    Disabled
+
+PS> rosa list machinepools -c rosa-lab
+ID       AUTOSCALING  REPLICAS  INSTANCE TYPE  LABELS    TAINTS    AVAILABILITY ZONE  SUBNET                    DISK SIZE  VERSION  AUTOREPAIR
+workers  No           2/2       m5.xlarge                          us-east-1a         subnet-08bf9c7f4dd735e32  300 GiB    4.22.22  Yes
+PS> rosa list idps -c rosa-lab
+NAME             TYPE
+cluster-admin    HTPasswd
+API: https://api.rosa-lab.i4e5.p3.openshiftapps.com:443
+
+Login successful.
+
+
+
+===================== 1. Look around as cluster admin (HCP: control plane is not in your account) =====================
+PS> oc whoami
+cluster-admin
+PS> oc version
+Client Version: 5.0.1
+Kustomize Version: v5.8.1
+Server Version: 4.22.22
+Kubernetes Version: v1.35.9
+PS> oc get nodes -o wide
+NAME                         STATUS   ROLES    AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                                                KERNEL-VERSION                 CONTAINER-RUNTIME
+ip-10-0-1-20.ec2.internal    Ready    worker   16m   v1.35.9   10.0.1.20     <none>        Red Hat Enterprise Linux CoreOS 9.8.20261103-0 (Plow)   5.14.0-687.65.1.el9_8.x86_64   cri-o://1.35.10-4.rhaos4.22.git9943eab.el9
+ip-10-0-1-210.ec2.internal   Ready    worker   16m   v1.35.9   10.0.1.210    <none>        Red Hat Enterprise Linux CoreOS 9.8.20261103-0 (Plow)   5.14.0-687.65.1.el9_8.x86_64   cri-o://1.35.10-4.rhaos4.22.git9943eab.el9
+PS> oc get nodes -L node.kubernetes.io/instance-type,topology.kubernetes.io/zone
+NAME                         STATUS   ROLES    AGE   VERSION   INSTANCE-TYPE   ZONE
+ip-10-0-1-20.ec2.internal    Ready    worker   16m   v1.35.9   m5.xlarge       us-east-1a
+ip-10-0-1-210.ec2.internal   Ready    worker   16m   v1.35.9   m5.xlarge       us-east-1a
+PS> oc get clusterversion
+NAME      VERSION   AVAILABLE   PROGRESSING   SINCE   STATUS
+version   4.22.22   True        False         10m     Cluster version is 4.22.22
+PS> oc get co
+NAME                                       VERSION   AVAILABLE   PROGRESSING   DEGRADED   SINCE   MESSAGE
+cloud-credential                           4.22.22   True        False         False      23m
+console                                    4.22.22   True        False         False      14m
+csi-snapshot-controller                    4.22.22   True        False         False      23m
+dns                                        4.22.22   True        False         False      15m
+image-registry                             4.22.22   True        False         False      15m
+ingress                                    4.22.22   True        False         False      15m
+insights                                   4.22.22   True        False         False      16m
+kube-apiserver                             4.22.22   True        False         False      23m
+kube-controller-manager                    4.22.22   True        False         False      23m
+kube-scheduler                             4.22.22   True        False         False      23m
+kube-storage-version-migrator              4.22.22   True        False         False      15m
+monitoring                                 4.22.22   True        False         False      14m
+network                                    4.22.22   True        False         False      23m
+node-tuning                                4.22.22   True        False         False      16m
+openshift-apiserver                        4.22.22   True        False         False      23m
+openshift-controller-manager               4.22.22   True        False         False      23m
+openshift-samples                          4.22.22   True        False         False      15m
+operator-lifecycle-manager                 4.22.22   True        False         False      23m
+operator-lifecycle-manager-catalog         4.22.22   True        False         False      23m
+operator-lifecycle-manager-packageserver   4.22.22   True        False         False      23m
+service-ca                                 4.22.22   True        False         False      16m
+storage                                    4.22.22   True        False         False      16m
+PS> oc get scc
+NAME                             PRIV    CAPS                   SELINUX     RUNASUSER          FSGROUP     SUPGROUP    PRIORITY     READONLYROOTFS   VOLUMES
+anyuid                           false   <no value>             MustRunAs   RunAsAny           RunAsAny    RunAsAny    10           false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","image","persistentVolumeClaim","projected","secret"]
+hostaccess                       false   <no value>             MustRunAs   MustRunAsRange     MustRunAs   RunAsAny    <no value>   false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","hostPath","image","persistentVolumeClaim","projected","secret"]
+hostmount-anyuid                 false   <no value>             MustRunAs   RunAsAny           RunAsAny    RunAsAny    <no value>   false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","hostPath","image","nfs","persistentVolumeClaim","projected","secret"]
+hostmount-anyuid-v2              false   <no value>             RunAsAny    RunAsAny           RunAsAny    RunAsAny    <no value>   false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","hostPath","image","nfs","persistentVolumeClaim","projected","secret"]
+hostnetwork                      false   <no value>             MustRunAs   MustRunAsRange     MustRunAs   MustRunAs   <no value>   false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","image","persistentVolumeClaim","projected","secret"]
+hostnetwork-v2                   false   ["NET_BIND_SERVICE"]   MustRunAs   MustRunAsRange     MustRunAs   MustRunAs   <no value>   false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","image","persistentVolumeClaim","projected","secret"]
+insights-runtime-extractor-scc   true    ["CAP_SYS_ADMIN"]      RunAsAny    RunAsAny           RunAsAny    RunAsAny    <no value>   false            ["*"]
+nested-container                 false   ["SETUID","SETGID"]    MustRunAs   MustRunAsRange     MustRunAs   MustRunAs   <no value>   false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","image","persistentVolumeClaim","projected","secret"]
+node-exporter                    true    <no value>             RunAsAny    RunAsAny           RunAsAny    RunAsAny    <no value>   false            ["*"]
+nonroot                          false   <no value>             MustRunAs   MustRunAsNonRoot   RunAsAny    RunAsAny    <no value>   false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","image","persistentVolumeClaim","projected","secret"]
+nonroot-v2                       false   ["NET_BIND_SERVICE"]   MustRunAs   MustRunAsNonRoot   RunAsAny    RunAsAny    <no value>   false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","image","persistentVolumeClaim","projected","secret"]
+pcap-dedicated-admins            false   ["NET_RAW"]            MustRunAs   MustRunAsNonRoot   RunAsAny    RunAsAny    <no value>   false            ["awsElasticBlockStore","azureDisk","azureFile","cephFS","cinder","configMap","csi","downwardAPI","emptyDir","ephemeral","fc","flexVolume","flocker","gcePersistentDisk","gitRepo","glusterfs","image","iscsi","nfs","persistentVolumeClaim","photonPersistentDisk","portworxVolume","projected","quobyte","rbd","scaleIO","secret","storageOS","vsphere"]
+privileged                       true    ["*"]                  RunAsAny    RunAsAny           RunAsAny    RunAsAny    <no value>   false            ["*"]
+restricted                       false   <no value>             MustRunAs   MustRunAsRange     MustRunAs   RunAsAny    <no value>   false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","image","persistentVolumeClaim","projected","secret"]
+restricted-v2                    false   ["NET_BIND_SERVICE"]   MustRunAs   MustRunAsRange     MustRunAs   RunAsAny    <no value>   false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","image","persistentVolumeClaim","projected","secret"]
+restricted-v3                    false   ["NET_BIND_SERVICE"]   MustRunAs   MustRunAsRange     MustRunAs   MustRunAs   <no value>   false            ["configMap","csi","downwardAPI","emptyDir","ephemeral","image","persistentVolumeClaim","projected","secret"]
+
+===================== 2. Deploy and expose an app =====================
+PS> oc new-project lab-web
+Now using project "lab-web" on server "https://api.rosa-lab.i4e5.p3.openshiftapps.com:443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app rails-postgresql-example
+
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=registry.k8s.io/e2e-test-images/agnhost:2.43 -- /agnhost serve-hostname
+
+PS> oc new-app --name=hello registry.access.redhat.com/ubi9/httpd-24~https://github.com/sclorg/httpd-ex.git
+--> Found container image 4910afe (3 days old) from registry.access.redhat.com for "registry.access.redhat.com/ubi9/httpd-24"
+
+    Apache httpd 2.4
+    ----------------
+    Apache httpd 2.4 available as container, is a powerful, efficient, and extensible web server. Apache supports a variety of features, many implemented as compiled modules which extend the core functionality. These can range from server-side programming language support to authentication schemes. Virtual hosting allows one Apache installation to serve many different Web sites.
+
+    Tags: builder, httpd, httpd-24
+
+    * An image stream tag will be created as "httpd-24:latest" that will track the source image
+    * A source build using source code from https://github.com/sclorg/httpd-ex.git will be created
+      * The resulting image will be pushed to image stream tag "hello:latest"
+      * Every time "httpd-24:latest" changes a new build will be triggered
+
+--> Creating resources ...
+    imagestream.image.openshift.io "httpd-24" created
+    imagestream.image.openshift.io "hello" created
+    buildconfig.build.openshift.io "hello" created
+    deployment.apps "hello" created
+    service "hello" created
+--> Success
+    Build scheduled, use 'oc logs -f buildconfig/hello' to track its progress.
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/hello'
+    Run 'oc status' to view your app.
+[ok] build hello-1 Complete (30 s)
+PS> oc get builds
+NAME      TYPE     FROM          STATUS     STARTED          DURATION
+hello-1   Source   Git@658aff0   Complete   32 seconds ago   27s
+PS> oc rollout status deployment/hello --timeout=300s
+deployment "hello" successfully rolled out
+PS> oc expose service/hello
+route.route.openshift.io/hello exposed
+Route: http://hello-lab-web.apps.rosa.rosa-lab.i4e5.p3.openshiftapps.com
+HTTP 200 - 37451 bytes
+PS> oc get all
+oc : Warning: apps.openshift.io/v1 DeploymentConfig is deprecated in v4.14+, unavailable no sooner than v6.0+
+At line:1 char:1
++ oc get all 2>&1
++ ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Warning: apps.o...oner than v6.0+:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+NAME                         READY   STATUS      RESTARTS   AGE
+pod/hello-1-build            0/1     Completed   0          35s
+pod/hello-86b959b867-tq5sd   1/1     Running     0          10s
+
+NAME            TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE
+service/hello   ClusterIP   172.30.90.227   <none>        8080/TCP,8443/TCP   35s
+
+NAME                    READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/hello   1/1     1            1           35s
+
+NAME                               DESIRED   CURRENT   READY   AGE
+replicaset.apps/hello-5f587c655    0         0         0       35s
+replicaset.apps/hello-86b959b867   1         1         1       10s
+
+NAME                                   TYPE     FROM   LATEST
+buildconfig.build.openshift.io/hello   Source   Git    1
+
+NAME                               TYPE     FROM          STATUS     STARTED          DURATION
+build.build.openshift.io/hello-1   Source   Git@658aff0   Complete   36 seconds ago   27s
+
+NAME                                      IMAGE REPOSITORY                                                    TAGS     UPDATED
+imagestream.image.openshift.io/hello      image-registry.openshift-image-registry.svc:5000/lab-web/hello      latest   11 seconds ago
+imagestream.image.openshift.io/httpd-24   image-registry.openshift-image-registry.svc:5000/lab-web/httpd-24   latest   37 seconds ago
+
+NAME                             HOST/PORT                                                    PATH   SERVICES   PORT       TERMINATION   WILDCARD
+route.route.openshift.io/hello   hello-lab-web.apps.rosa.rosa-lab.i4e5.p3.openshiftapps.com          hello      8080-tcp                 None
+
+===================== 2b. RBAC: least privilege for a developer =====================
+PS> oc adm policy add-role-to-user edit developer -n lab-web
+oc : Warning: User 'developer' not found
+At line:1 char:1
++ oc adm policy add-role-to-user edit developer -n lab-web 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Warning: User 'developer' not found:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+clusterrole.rbac.authorization.k8s.io/edit added: "developer"
+PS> oc auth can-i create deployments -n lab-web --as=developer
+yes
+PS> oc auth can-i delete nodes --as=developer
+oc : Warning: resource 'nodes' is not namespace scoped
+At line:1 char:1
++ oc auth can-i delete nodes --as=developer 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Warning: resour...amespace scoped:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+
+no
+PS> oc auth can-i get secrets -n default --as=developer
+no
+PS> oc get rolebindings -n lab-web
+NAME                                    ROLE                                   AGE
+admin                                   ClusterRole/admin                      42s
+dedicated-admin-serviceaccounts-0       ClusterRole/dedicated-admins-project   42s
+dedicated-admin-serviceaccounts-1       ClusterRole/admin                      42s
+dedicated-admins-0                      ClusterRole/dedicated-admins-project   42s
+dedicated-admins-1                      ClusterRole/admin                      42s
+dedicated-admins-alert-routing-edit-0   ClusterRole/alert-routing-edit         42s
+edit                                    ClusterRole/edit                       3s
+system:deployers                        ClusterRole/system:deployer            42s
+system:image-builders                   ClusterRole/system:image-builder       42s
+system:image-pullers                    ClusterRole/system:image-puller        42s
+
+===================== 3. Scale and self-heal =====================
+PS> oc scale deployment/hello --replicas=3
+deployment.apps/hello scaled
+PS> oc rollout status deployment/hello --timeout=180s
+Waiting for deployment "hello" rollout to finish: 1 of 3 updated replicas are available...
+Waiting for deployment "hello" rollout to finish: 2 of 3 updated replicas are available...
+deployment "hello" successfully rolled out
+PS> oc get pods -l deployment=hello -o wide
+NAME                     READY   STATUS    RESTARTS   AGE   IP            NODE                         NOMINATED NODE   READINESS GATES
+hello-86b959b867-cfdsn   1/1     Running   0          9s    10.129.0.35   ip-10-0-1-210.ec2.internal   <none>           <none>
+hello-86b959b867-svvnd   1/1     Running   0          9s    10.129.0.36   ip-10-0-1-210.ec2.internal   <none>           <none>
+hello-86b959b867-tq5sd   1/1     Running   0          24s   10.128.0.46   ip-10-0-1-20.ec2.internal    <none>           <none>
+PS> oc delete pod hello-86b959b867-cfdsn --wait=false
+pod "hello-86b959b867-cfdsn" deleted from lab-web namespace
+PS> oc get pods -l deployment=hello
+NAME                     READY   STATUS    RESTARTS   AGE
+hello-86b959b867-svvnd   1/1     Running   0          30s
+hello-86b959b867-tq5sd   1/1     Running   0          45s
+hello-86b959b867-vdr8n   1/1     Running   0          20s
+
+===================== 4. ConfigMap and Secret =====================
+PS> oc create configmap hello-config --from-literal=ENVIRONMENT=lab --from-literal=OWNER=fkelly
+configmap/hello-config created
+PS> oc create secret generic hello-db --from-literal=DB_PASSWORD=NotARealPassword123
+secret/hello-db created
+PS> oc set env deployment/hello --from=configmap/hello-config
+deployment.apps/hello updated
+PS> oc set env deployment/hello --from=secret/hello-db
+deployment.apps/hello updated
+PS> oc rollout status deployment/hello --timeout=180s
+Waiting for deployment "hello" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "hello" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "hello" rollout to finish: 1 old replicas are pending termination...
+deployment "hello" successfully rolled out
+
+ENVIRONMENT=lab
+OWNER=fkelly
+DB_PASSWORD=NotARealPassword123
+
+
+Secrets are only base64-encoded:
+PS> oc get secret hello-db -o jsonpath='{.data.DB_PASSWORD}'
+Tm90QVJlYWxQYXNzd29yZDEyMw==
+
+===================== 5. Break-and-fix 1: ImagePullBackOff =====================
+PS> oc create deployment badimage --image=registry.access.redhat.com/ubi9/httpd-24:doesnotexist
+deployment.apps/badimage created
+PS> oc get pods -l app=badimage
+NAME                       READY   STATUS         RESTARTS   AGE
+badimage-6fdbcfd75-27shd   0/1     ErrImagePull   0          61s
+
+  Warning  Failed          21s (x3 over 60s)  kubelet            spec.containers{httpd-24}: Failed to pull image
+"registry.access.redhat.com/ubi9/httpd-24:doesnotexist": unable to pull image or OCI artifact: pull image err: initializing source
+docker://registry.access.redhat.com/ubi9/httpd-24:doesnotexist: reading manifest doesnotexist in registry.access.redhat.com/ubi9/httpd-24: manifest unknown;
+artifact err: image reference: get manifest from ref: create image source: reading manifest doesnotexist in registry.access.redhat.com/ubi9/httpd-24:
+manifest unknown
+  Warning  Failed          21s (x3 over 60s)  kubelet            spec.containers{httpd-24}: Error: ErrImagePull
+  Normal   BackOff         8s (x3 over 59s)   kubelet            spec.containers{httpd-24}: Back-off pulling image
+"registry.access.redhat.com/ubi9/httpd-24:doesnotexist"
+  Warning  Failed          8s (x3 over 59s)   kubelet            spec.containers{httpd-24}: Error: ImagePullBackOff
+
+
+PS> oc set image deployment/badimage httpd-24=registry.access.redhat.com/ubi9/httpd-24:latest
+deployment.apps/badimage image updated
+PS> oc rollout status deployment/badimage --timeout=300s
+Waiting for deployment "badimage" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "badimage" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "badimage" rollout to finish: 1 old replicas are pending termination...
+deployment "badimage" successfully rolled out
+PS> oc get pods -l app=badimage
+NAME                        READY   STATUS        RESTARTS   AGE
+badimage-65c65b5869-vhh6k   1/1     Running       0          3s
+badimage-6fdbcfd75-27shd    0/1     Terminating   0          65s
+
+===================== 6. Break-and-fix 2: CrashLoopBackOff =====================
+deployment.apps/crashy created
+PS> oc get pods -l app=crashy
+NAME                      READY   STATUS   RESTARTS      AGE
+crashy-6b9455674b-mqxnj   0/1     Error    4 (45s ago)   90s
+PS> oc logs deployment/crashy --previous
+unable to retrieve container logs for cri-o://5469afffacc93b99828a20d54ead767c3f44d6f6f27b775cf739b03e2dc979c0
+PS> oc delete deployment crashy
+deployment.apps "crashy" deleted from lab-web namespace
+
+===================== 7. Break-and-fix 3: image that wants root (SCC restricted-v2) =====================
+PS> oc create deployment rootnginx --image=docker.io/library/nginx:latest
+deployment.apps/rootnginx created
+PS> oc get pods -l app=rootnginx
+NAME                         READY   STATUS   RESTARTS      AGE
+rootnginx-6dcbc4f5cc-xmh6k   0/1     Error    3 (59s ago)   76s
+PS> oc logs deployment/rootnginx --tail=5
+/docker-entrypoint.sh: Configuration complete; ready for start up
+2026/11/25 18:39:39 [warn] 1#1: the "user" directive makes sense only if the master process runs with super-user privileges, ignored in /etc/nginx/nginx.conf:2
+nginx: [warn] the "user" directive makes sense only if the master process runs with super-user privileges, ignored in /etc/nginx/nginx.conf:2
+2026/11/25 18:39:39 [emerg] 1#1: mkdir() "/var/cache/nginx/client_temp" failed (13: Permission denied)
+nginx: [emerg] mkdir() "/var/cache/nginx/client_temp" failed (13: Permission denied)
+SCC applied: restricted-v2
+PS> oc delete deployment rootnginx
+deployment.apps "rootnginx" deleted from lab-web namespace
+PS> oc create deployment nginx --image=registry.access.redhat.com/ubi9/nginx-122 --port=8080
+deployment.apps/nginx created
+PS> oc rollout status deployment/nginx --timeout=300s
+Waiting for deployment "nginx" rollout to finish: 0 of 1 updated replicas are available...
+oc : error: timed out waiting for the condition
+At line:1 char:1
++ oc rollout status deployment/nginx --timeout=300s 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (error: timed ou...r the condition:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+PS> oc get pods -l app=nginx
+NAME                     READY   STATUS             RESTARTS      AGE
+nginx-565799b4c5-cktgn   0/1     CrashLoopBackOff   5 (87s ago)   5m
+
+===================== 8. Break-and-fix 4: OOMKilled =====================
+PS> oc set resources deployment/hello --limits=memory=8Mi --requests=memory=8Mi
+deployment.apps/hello resource requirements updated
+PS> oc get pods -l deployment=hello
+NAME                     READY   STATUS      RESTARTS      AGE
+hello-68457d95d4-ffwgq   1/1     Running     0             10m
+hello-68457d95d4-qbqnk   1/1     Running     0             10m
+hello-68457d95d4-xqhxq   1/1     Running     0             10m
+hello-7b6c4cc756-b58bj   0/1     OOMKilled   4 (51s ago)   90s
+PS> oc get pods -l deployment=hello -o custom-columns=NAME:.metadata.name,LAST_EXIT:.status.containerStatuses[0].lastState.terminated.reason,STATE:.status.containerStatuses[0].state.waiting.reason
+NAME                     LAST_EXIT   STATE
+hello-68457d95d4-ffwgq   <none>      <none>
+hello-68457d95d4-qbqnk   <none>      <none>
+hello-68457d95d4-xqhxq   <none>      <none>
+hello-7b6c4cc756-b58bj   OOMKilled   <none>
+
+9m22s       Warning   Failed                     pod/badimage-6fdbcfd75-27shd      Error: ImagePullBackOff
+7m53s       Warning   BackOff                    pod/crashy-6b9455674b-mqxnj       Back-off restarting failed container ubi-minimal in pod
+crashy-6b9455674b-mqxnj_lab-web(bddfb05b-3288-4408-b177-a66372813578)
+7m7s        Warning   BackOff                    pod/rootnginx-6dcbc4f5cc-xmh6k    Back-off restarting failed container nginx in pod
+rootnginx-6dcbc4f5cc-xmh6k_lab-web(0463884c-802c-45dc-b04a-1b107f77c85e)
+12s         Warning   BackOff                    pod/nginx-565799b4c5-cktgn        Back-off restarting failed container nginx-122 in pod
+nginx-565799b4c5-cktgn_lab-web(03b18a3c-9c0f-4118-beec-1f02ba7fb478)
+3s          Warning   BackOff                    pod/hello-7b6c4cc756-b58bj        Back-off restarting failed container hello in pod
+hello-7b6c4cc756-b58bj_lab-web(1243596a-7902-4b93-a569-d2f9fbc75e94)
+
+
+PS> oc set resources deployment/hello --limits=memory=256Mi --requests=memory=64Mi
+deployment.apps/hello resource requirements updated
+PS> oc rollout status deployment/hello --timeout=300s
+Waiting for deployment "hello" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "hello" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "hello" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "hello" rollout to finish: 1 old replicas are pending termination...
+deployment "hello" successfully rolled out
+PS> oc get pods -l deployment=hello
+NAME                     READY   STATUS      RESTARTS   AGE
+hello-68457d95d4-ffwgq   0/1     Completed   0          10m
+hello-f4695d7fc-6ngqf    1/1     Running     0          2s
+hello-f4695d7fc-qqs4p    1/1     Running     0          3s
+hello-f4695d7fc-w6bsh    1/1     Running     0          5s
+
+===================== 9. Final state =====================
+PS> oc get all
+oc : Warning: apps.openshift.io/v1 DeploymentConfig is deprecated in v4.14+, unavailable no sooner than v6.0+
+At line:1 char:1
++ oc get all 2>&1
++ ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Warning: apps.o...oner than v6.0+:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+NAME                            READY   STATUS      RESTARTS       AGE
+pod/badimage-65c65b5869-vhh6k   1/1     Running     0              9m30s
+pod/hello-1-build               0/1     Completed   0              11m
+pod/hello-f4695d7fc-6ngqf       1/1     Running     0              3s
+pod/hello-f4695d7fc-qqs4p       1/1     Running     0              4s
+pod/hello-f4695d7fc-w6bsh       1/1     Running     0              6s
+pod/nginx-565799b4c5-cktgn      0/1     Completed   6 (3m5s ago)   6m38s
+
+NAME            TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE
+service/hello   ClusterIP   172.30.90.227   <none>        8080/TCP,8443/TCP   11m
+
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/badimage   1/1     1            1           10m
+deployment.apps/hello      3/3     3            3           11m
+deployment.apps/nginx      0/1     1            0           6m38s
+
+NAME                                  DESIRED   CURRENT   READY   AGE
+replicaset.apps/badimage-65c65b5869   1         1         1       9m30s
+replicaset.apps/badimage-6fdbcfd75    0         0         0       10m
+replicaset.apps/hello-5f587c655       0         0         0       11m
+replicaset.apps/hello-68457d95d4      0         0         0       10m
+replicaset.apps/hello-7b6c4cc756      0         0         0       97s
+replicaset.apps/hello-85674cdb86      0         0         0       10m
+replicaset.apps/hello-86b959b867      0         0         0       11m
+replicaset.apps/hello-f4695d7fc       3         3         3       6s
+replicaset.apps/nginx-565799b4c5      1         1         0       6m38s
+
+NAME                                   TYPE     FROM   LATEST
+buildconfig.build.openshift.io/hello   Source   Git    1
+
+NAME                               TYPE     FROM          STATUS     STARTED          DURATION
+build.build.openshift.io/hello-1   Source   Git@658aff0   Complete   11 minutes ago   27s
+
+NAME                                      IMAGE REPOSITORY                                                    TAGS     UPDATED
+imagestream.image.openshift.io/hello      image-registry.openshift-image-registry.svc:5000/lab-web/hello      latest   11 minutes ago
+imagestream.image.openshift.io/httpd-24   image-registry.openshift-image-registry.svc:5000/lab-web/httpd-24   latest   11 minutes ago
+
+NAME                             HOST/PORT                                                    PATH   SERVICES   PORT       TERMINATION   WILDCARD
+route.route.openshift.io/hello   hello-lab-web.apps.rosa.rosa-lab.i4e5.p3.openshiftapps.com          hello      8080-tcp                 None
+PS> oc get events --sort-by=.lastTimestamp | Select-Object -Last 15
+5s          Normal    AddedInterface             pod/hello-f4695d7fc-qqs4p         Add eth0 [10.129.0.43/23] from ovn-kubernetes
+5s          Normal    SuccessfulDelete           replicaset/hello-68457d95d4       Deleted pod: hello-68457d95d4-xqhxq
+5s          Normal    Pulled                     pod/hello-f4695d7fc-qqs4p         Container image "image-registry.openshift-image-registry.svc:5000/lab-web/hello@sha256:7cb918af11b3bc0b6db41b651afc402499b1fa9a388164335073388d585904d2" already present on machine and can be accessed by the pod
+5s          Normal    Started                    pod/hello-f4695d7fc-qqs4p         Container started
+5s          Normal    SuccessfulCreate           replicaset/hello-f4695d7fc        Created pod: hello-f4695d7fc-qqs4p
+4s          Normal    Killing                    pod/hello-68457d95d4-qbqnk        Stopping container hello
+4s          Normal    SuccessfulDelete           replicaset/hello-68457d95d4       Deleted pod: hello-68457d95d4-qbqnk
+4s          Normal    SuccessfulCreate           replicaset/hello-f4695d7fc        Created pod: hello-f4695d7fc-6ngqf
+3s          Normal    Pulled                     pod/hello-f4695d7fc-6ngqf         Container image "image-registry.openshift-image-registry.svc:5000/lab-web/hello@sha256:7cb918af11b3bc0b6db41b651afc402499b1fa9a388164335073388d585904d2" already present on machine and can be accessed by the pod
+3s          Normal    AddedInterface             pod/hello-f4695d7fc-6ngqf         Add eth0 [10.128.0.54/23] from ovn-kubernetes
+3s          Normal    Created                    pod/hello-f4695d7fc-6ngqf         Container created
+3s          Normal    Started                    pod/hello-f4695d7fc-6ngqf         Container started
+2s          Normal    Killing                    pod/hello-68457d95d4-ffwgq        Stopping container hello
+2s          Normal    ScalingReplicaSet          deployment/hello                  (combined from similar events): Scaled down replica set hello-68457d95d4 from 1 to 0
+2s          Normal    SuccessfulDelete           replicaset/hello-68457d95d4       Deleted pod: hello-68457d95d4-ffwgq
+Console: https://console-openshift-console.apps.rosa.rosa-lab.i4e5.p3.openshiftapps.com
+
+Done. REMEMBER: the cluster bills by the hour - run the teardown steps next.
+**********************
+Windows PowerShell transcript end
+**********************
